@@ -2,6 +2,7 @@ import express from 'express'
 import http from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
+import { loadChunk, processOSMData, scaleOSMData } from './osm.js'
 
 const app = express()
 app.use(cors())
@@ -14,10 +15,12 @@ server.listen(PORT, () => {
     console.log(` === Server running on port ${PORT} === `)
 })
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
     console.log(`> Client connected: ${socket.id.substring(0, 6)}`)
     socket.emit('connected')
 
+    const data = await loadChunk(41.715, 44.783)
+    socket.emit('test', scaleOSMData(processOSMData(data)))
     socket.on('disconnect', () => {
         console.log(`< Client disconnected: ${socket.id.substring(0, 6)}`)
     })
