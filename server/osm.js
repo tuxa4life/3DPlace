@@ -1,11 +1,39 @@
 import axios from 'axios'
 
-const getChunkCoordinates = (lat, lon) => [lat - 0.02, lon - 0.02, lat + 0.02, lon + 0.02]
+const coordsToChunk = (lat, lon, zoom = 15) => {
+    const x = ((lon + 180) / 360) * 2 ** zoom
+    const y = ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * 2 ** zoom
+    return [Math.floor(x), Math.floor(y)]
+}
+
+const chunkToCoords = (tileX, tileY, zoom = 15) => {
+    const n = Math.PI - (2 * Math.PI * tileY) / 2 ** zoom
+    const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))
+    const lon = (tileX / 2 ** zoom) * 360 - 180
+    return { lat, lon }
+}
+
+export const getChunks = (lat, lon, radius = 5) => {
+    const center = coordsToChunk(lat, lon)
+    const chunks = []
+    
+    const sides = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1]]
+    for (let r = 1; r < radius; r ++) {
+        for (let i = 0; i < sides.length; i ++) {
+            const id = [center[0] + sides[i][0] * r, center[1] + sides[i][1] * r]
+            const coords = chunkToCoords(id[0], id[1])
+
+            chunks.push({id, coords})
+        }
+    }
+
+    return chunks
+}
 
 const fetchWithRetry = async (url, query, retries = 5, delay = 500) => {
     try {
         const res = await axios.get(url, { params: { data: query } })
-        return res.data.elements
+        return res.data
     } catch (err) {
         console.log('There was error fetchWithRetrying data. Retrying...')
         if (retries <= 0) throw err
@@ -27,7 +55,8 @@ export const loadChunk = async (lat, lon) => {
         out geom;
     `
 
-    return await fetchWithRetry(url, query)
+    const result = await fetchWithRetry(url, query)
+    return result.elements
 }
 
 export const processOSMData = (elements = []) => {
@@ -42,7 +71,7 @@ export const processOSMData = (elements = []) => {
 }
 
 export const scaleOSMData = (dataArray, metersPerLevel = 3) => {
-    const EARTH_RADIUS = 6371000 
+    const EARTH_RADIUS = 6371000
 
     const latLonToMeters = (lat, lon, refLat, refLon) => {
         const lat1 = (refLat * Math.PI) / 180
@@ -59,17 +88,14 @@ export const scaleOSMData = (dataArray, metersPerLevel = 3) => {
         return { x, y }
     }
 
+    const refLat = dataArray[0].nodes[0].lat
+    const refLon = dataArray[0].nodes[0].lon
     return dataArray.map((data) => {
         if (!data.nodes || data.nodes.length === 0) {
-            return { nodes: [], height_meters: 0 }
+            return { nodes: [], height: 0 }
         }
 
-        const nodes = data.nodes
-
-        const refLat = nodes[0].lat
-        const refLon = nodes[0].lon
-
-        const scaledNodes = nodes.map((node) => {
+        const scaledNodes = data.nodes.map((node) => {
             const { x, y } = latLonToMeters(node.lat, node.lon, refLat, refLon)
 
             return {
@@ -83,11 +109,7 @@ export const scaleOSMData = (dataArray, metersPerLevel = 3) => {
 
         return {
             nodes: scaledNodes,
-            height_meters: heightMeters,
-            reference_point: {
-                lat: refLat,
-                lon: refLon,
-            },
+            height: heightMeters,
         }
     })
 }
