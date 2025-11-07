@@ -19,7 +19,7 @@ io.on('connection', async (socket) => {
     console.log(`> Client connected: ${socket.id.substring(0, 6)}`)
     socket.emit('connected')
 
-    const data = getChunks(41.715, 44.783)
+    const data = getChunks(41.715, 44.783, 3)
     socket.emit('test', data)
     socket.on('disconnect', () => {
         console.log(`< Client disconnected: ${socket.id.substring(0, 6)}`)

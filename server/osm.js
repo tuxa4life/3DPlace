@@ -8,23 +8,33 @@ const coordsToChunk = (lat, lon, zoom = 15) => {
 
 const chunkToCoords = (tileX, tileY, zoom = 15) => {
     const n = Math.PI - (2 * Math.PI * tileY) / 2 ** zoom
-    const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))
+    const lat = (180 / Math.PI) * Math.atan(Math.sinh(n))
     const lon = (tileX / 2 ** zoom) * 360 - 180
-    return { lat, lon }
+    return { lat: Number(lat.toFixed(6)), lon: Number(lon.toFixed(6)) }
 }
 
 export const getChunks = (lat, lon, radius = 5) => {
     const center = coordsToChunk(lat, lon)
     const chunks = []
-    
-    const sides = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1], [1, -1], [1, 0], [1, 1]]
-    for (let r = 1; r < radius; r ++) {
-        for (let i = 0; i < sides.length; i ++) {
-            const id = [center[0] + sides[i][0] * r, center[1] + sides[i][1] * r]
+
+    const sides = [
+        [-1, -1],
+        [-1, 0],
+        [-1, 1],
+        [0, -1],
+        [0, 0],
+        [0, 1],
+        [1, -1],
+        [1, 0],
+        [1, 1],
+    ]
+    for (let r = 1; r < radius; r++) {
+        sides.forEach(side => {
+            const id = [center[0] + side[0] * r, center[1] + side[1] * r]
             const coords = chunkToCoords(id[0], id[1])
 
-            chunks.push({id, coords})
-        }
+            chunks.push({ id: [id[1], id[0]], coords })
+        })
     }
 
     return chunks
