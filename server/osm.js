@@ -3,6 +3,7 @@ import axios from 'axios'
 const coordsToChunk = (lat, lon, zoom = 15) => {
     const x = ((lon + 180) / 360) * 2 ** zoom
     const y = ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * 2 ** zoom
+    
     return [Math.floor(x), Math.floor(y)]
 }
 
@@ -10,6 +11,7 @@ const chunkToCoords = (tileX, tileY, zoom = 15) => {
     const n = Math.PI - (2 * Math.PI * tileY) / 2 ** zoom
     const lat = (180 / Math.PI) * Math.atan(Math.sinh(n))
     const lon = (tileX / 2 ** zoom) * 360 - 180
+
     return { lat: Number(lat.toFixed(6)), lon: Number(lon.toFixed(6)) }
 }
 
@@ -17,24 +19,12 @@ export const getChunks = (lat, lon, radius = 5) => {
     const center = coordsToChunk(lat, lon)
     const chunks = []
 
-    const sides = [
-        [-1, -1],
-        [-1, 0],
-        [-1, 1],
-        [0, -1],
-        [0, 0],
-        [0, 1],
-        [1, -1],
-        [1, 0],
-        [1, 1],
-    ]
-    for (let r = 1; r < radius; r++) {
-        sides.forEach(side => {
-            const id = [center[0] + side[0] * r, center[1] + side[1] * r]
+    for (let x = -radius; x <= radius; x++) {
+        for (let y = -radius; y <= radius; y++) {
+            const id = [center[0] + x, center[1] + y]
             const coords = chunkToCoords(id[0], id[1])
-
-            chunks.push({ id: [id[1], id[0]], coords })
-        })
+            chunks.push({ id, coords })
+        }
     }
 
     return chunks
