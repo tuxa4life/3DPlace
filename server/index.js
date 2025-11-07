@@ -2,7 +2,7 @@ import express from 'express'
 import http from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
-import { getChunks, loadChunk, processChunks, processOSMData, scaleOSMData } from './osm.js'
+import { getChunks, loadChunk, loadChunks, processChunks, processOSMData, scaleOSMData } from './osm.js'
 
 const app = express()
 app.use(cors())
@@ -19,7 +19,8 @@ io.on('connection', async (socket) => {
     console.log(`> Client connected: ${socket.id.substring(0, 6)}`)
     socket.emit('connected')
 
-    const data = processChunks(getChunks(41.715, 44.783, 1))
+    const chunks = processChunks(getChunks(41.715, 44.783, 1))
+    const data = await loadChunks(chunks)
     socket.emit('test', data)
     socket.on('disconnect', () => {
         console.log(`< Client disconnected: ${socket.id.substring(0, 6)}`)

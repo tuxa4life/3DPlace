@@ -31,22 +31,19 @@ export const getChunks = (lat, lon, radius = 5) => {
 }
 
 export const processChunks = (chunks, zoom = 15) => {
-    const output = []
-    chunks.forEach((chunk) => {
+    const output = chunks.map((chunk) => {
         const [x, y] = chunk.id
-
-        const nw = chunkToCoords(x, y, zoom)
         const se = chunkToCoords(x + 1, y + 1, zoom)
 
-        output.push({
+        return {
             id: chunk.id,
             coords: {
-                north: nw.lat,
-                west: nw.lon,
+                north: chunk.coords.lat,
+                west: chunk.coords.lon,
                 south: se.lat,
                 east: se.lon,
             },
-        })
+        }
     })
 
     return output
@@ -57,7 +54,7 @@ const fetchWithRetry = async (url, query, retries = 5, delay = 500) => {
         const res = await axios.get(url, { params: { data: query } })
         return res.data
     } catch (err) {
-        console.log('There was error fetchWithRetrying data. Retrying...')
+        console.log(err.status)
         if (retries <= 0) throw err
 
         await new Promise((r) => setTimeout(r, delay))
@@ -65,11 +62,10 @@ const fetchWithRetry = async (url, query, retries = 5, delay = 500) => {
     }
 }
 
-export const loadChunk = async (lat, lon) => {
-    const [south, west, north, east] = getChunkCoordinates(lat, lon)
+export const loadChunk = async (north, east, south, west) => {
     const url = 'https://overpass-api.de/api/interpreter'
     const query = `
-        [out:json][timeout:180];
+        [out:json][timeout:3600];
         (
             way["building"](${south}, ${west}, ${north}, ${east});
             relation["building"](${south}, ${west}, ${north}, ${east});
@@ -78,7 +74,20 @@ export const loadChunk = async (lat, lon) => {
     `
 
     const result = await fetchWithRetry(url, query)
-    return result.elements
+    return result.elements || []
+}
+
+export const loadChunks = async (chunks) => {
+    return Promise.all(
+        chunks.map(async (chunk) => {
+            const { north, east, south, west } = chunk.coords
+            const data = await loadChunk(north, east, south, west)
+            return {
+                id: chunk.id,
+                nodes: scaleOSMData(processOSMData(data)),
+            }
+        })
+    )
 }
 
 export const processOSMData = (elements = []) => {
