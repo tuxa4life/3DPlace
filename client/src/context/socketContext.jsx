@@ -14,9 +14,8 @@ const SocketProvider = ({ children }) => {
 
         socket.on('test', (data) => {
             data.forEach(e => {
-                console.log(e.id, [e.coords.lat, e.coords.lon])
+                console.log(e.id, [e.coords.north, e.coords.east, e.coords.south, e.coords.west])
             })
-            console.log(data.length)
         })
 
     }, [])

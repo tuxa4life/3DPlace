@@ -3,7 +3,7 @@ import axios from 'axios'
 const coordsToChunk = (lat, lon, zoom = 15) => {
     const x = ((lon + 180) / 360) * 2 ** zoom
     const y = ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * 2 ** zoom
-    
+
     return [Math.floor(x), Math.floor(y)]
 }
 
@@ -28,6 +28,28 @@ export const getChunks = (lat, lon, radius = 5) => {
     }
 
     return chunks
+}
+
+export const processChunks = (chunks, zoom = 15) => {
+    const output = []
+    chunks.forEach((chunk) => {
+        const [x, y] = chunk.id
+
+        const nw = chunkToCoords(x, y, zoom)
+        const se = chunkToCoords(x + 1, y + 1, zoom)
+
+        output.push({
+            id: chunk.id,
+            coords: {
+                north: nw.lat,
+                west: nw.lon,
+                south: se.lat,
+                east: se.lon,
+            },
+        })
+    })
+
+    return output
 }
 
 const fetchWithRetry = async (url, query, retries = 5, delay = 500) => {
